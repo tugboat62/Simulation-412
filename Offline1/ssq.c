@@ -8,11 +8,11 @@
 #define IDLE 0 /* and idle. */
 
 int next_event_type, num_custs_delayed, num_delays_required, num_events,
-num_in_q, server_status;
+num_in_q, server_status, event_count=1, cust_arr=0, cust_dep=0;
 float area_num_in_q, area_server_status, mean_interarrival, mean_service,
 sim_time, time_arrival[Q_LIMIT + 1], time_last_event, time_next_event[3],
 total_of_delays;
-FILE *infile, *outfile;
+FILE *infile, *outfile, *outfile2;
 void initialize(void);
 void timing(void);
 void arrive(void);
@@ -24,18 +24,19 @@ float expon(float mean);
 int main()
 {
     /* Open input and output files. */
-    infile = fopen("input.txt", "r");
-    outfile = fopen("output.txt", "w");
+    infile = fopen("in.txt", "r");
+    outfile = fopen("results.txt", "w");
+    outfile2 = fopen("event_orders.txt", "w");
     /* Specify the number of events for the timing function. */
     num_events = 2;
     /* Read input parameters. */
     fscanf(infile, "%f %f %d", &mean_interarrival, &mean_service,
     &num_delays_required);
     /* Write report heading and input parameters. */
-    fprintf(outfile, "Single-server queueing system\n\n");
-    fprintf(outfile, "Mean interarrival time%11.3f minutes\n\n",
+    fprintf(outfile, "----Single-Server Queueing System----\n\n");
+    fprintf(outfile, "Mean interarrival time%11.3f minutes\n",
     mean_interarrival);
-    fprintf(outfile, "Mean service time%16.3f minutes\n\n", mean_service);
+    fprintf(outfile, "Mean service time%16.3f minutes\n", mean_service);
     fprintf(outfile, "Number of customers%14d\n\n", num_delays_required);
     /* Initialize the simulation. */
     initialize();
@@ -105,6 +106,9 @@ void timing(void) /* Timing function. */
 void arrive(void) /* Arrival event function. */
 {
     float delay;
+    cust_arr++;
+
+    fprintf(outfile2, "%d. Next event: Customer %d Arrival\n", event_count++, cust_arr);
     /* Schedule next arrival. */
     time_next_event[1] = sim_time + expon(mean_interarrival);
     /* Check to see whether server is busy. */
@@ -130,6 +134,10 @@ void arrive(void) /* Arrival event function. */
         total_of_delays += delay;
         /* Increment the number of customers delayed, and make server busy. */
         ++num_custs_delayed;
+    
+        fprintf(outfile2, "\n---------No. of customers delayed: ");
+        fprintf(outfile2, "%d---------\n\n", num_custs_delayed);
+        
         server_status = BUSY;
         /* Schedule a departure (service completion). */
         time_next_event[2] = sim_time + expon(mean_service);
@@ -140,6 +148,8 @@ void depart(void) /* Departure event function. */
 {
     int i;
     float delay;
+    cust_dep++;
+    fprintf(outfile2, "%d. Next event: Customer %d Departure\n", event_count++, cust_dep);
     /* Check to see whether the queue is empty. */
     if (num_in_q == 0) {
         /* The queue is empty so make the server idle and eliminate the
@@ -157,6 +167,9 @@ void depart(void) /* Departure event function. */
         total_of_delays += delay;
         /* Increment the number of customers delayed, and schedule departure. */
         ++num_custs_delayed;
+        
+        fprintf(outfile2, "\n---------No. of customers delayed: %d---------\n\n", num_custs_delayed);
+
         time_next_event[2] = sim_time + expon(mean_service);
         /* Move each customer in queue (if any) up one place. */
         for (i = 1; i <= num_in_q; ++i)
@@ -167,11 +180,11 @@ void depart(void) /* Departure event function. */
 void report(void) /* Report generator function. */
 {
     /* Compute and write estimates of desired measures of performance. */
-    fprintf(outfile, "\n\nAverage delay in queue%11.3f minutes\n\n",
+    fprintf(outfile, "Average delay in queue%11.3f minutes\n",
     total_of_delays / num_custs_delayed);
-    fprintf(outfile, "Average number in queue%10.3f\n\n",
+    fprintf(outfile, "Average number in queue%10.3f\n",
     area_num_in_q / sim_time);
-    fprintf(outfile, "Server utilization%15.3f\n\n",
+    fprintf(outfile, "Server utilization%15.3f\n",
     area_server_status / sim_time);
     fprintf(outfile, "Time simulation ended%12.3f minutes", sim_time);
 }
